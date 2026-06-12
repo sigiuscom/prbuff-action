@@ -25,6 +25,13 @@ api="${PRBUFF_API_URL%/}"
 poll_timeout="${PRBUFF_POLL_TIMEOUT:-900}"   # 15 min
 interval=10
 
+# Collapse the play-by-play (queue, run id, status polling) into a folded group so
+# the client's Actions log shows one clean summary line, not our internals. The
+# group is still expandable for self-service debugging; the run id lives only here.
+_group_open=0
+open_group()  { [ "$_group_open" = 0 ] && printf '::group::prbuff review details\n' && _group_open=1 || true; }
+close_group() { [ "$_group_open" = 1 ] && printf '::endgroup::\n' && _group_open=0 || true; }
+
 body=$(cat <<JSON
 {"owner":"${PRBUFF_OWNER}","repo":"${PRBUFF_REPO}","pull_number":${PRBUFF_PR},"command":"${PRBUFF_COMMAND}","head_sha":"${PRBUFF_HEAD_SHA}","github_token":"${PRBUFF_GH_TOKEN}"}
 JSON
@@ -37,6 +44,8 @@ create() {
     -d "${body}"
 }
 
+open_group
+
 # --- submit, retrying on 429 (queue full) within the overall timeout (M11)
 deadline=$(( SECONDS + poll_timeout ))
 while :; do
@@ -46,10 +55,11 @@ while :; do
   if [ "$code" = "429" ]; then
     echo "prbuff: review queue is full, retrying..."
     sleep "$interval"; [ "$SECONDS" -lt "$deadline" ] && continue
-    echo "prbuff: queue stayed full until timeout" >&2; exit 1
+    close_group; echo "prbuff: review could not start (capacity); try again shortly" >&2; exit 1
   fi
   if [ "$code" != "202" ]; then
     err=$(printf '%s' "$json" | grep -o '"error_code":"[^"]*"' | cut -d'"' -f4 || true)
+    close_group
     if [ "$err" = "token_insufficient_scope" ]; then
       echo "prbuff: GitHub token lacks pull-request write permission; add 'permissions: pull-requests: write' to the workflow" >&2
     else
@@ -73,18 +83,21 @@ while [ "$SECONDS" -lt "$deadline" ]; do
   [ "$status" != "$last" ] && echo "prbuff: status=${status} (${SECONDS}s elapsed)" && last="$status"
   case "$status" in
     succeeded)
+      close_group
       if [ "$dry" = "true" ]; then
         echo "prbuff: review completed in dry-run mode, no comments posted"
       else
-        echo "prbuff: review completed"
+        echo "prbuff: review completed ✓"
       fi
       exit 0 ;;
     failed|timeout|expired)
       err=$(printf '%s' "$resp" | grep -o '"error_code":"[^"]*"' | cut -d'"' -f4 || true)
-      echo "prbuff: review ${status} (run ${run_id}, ${err:-no detail})" >&2
+      close_group
+      echo "prbuff: review ${status} (${err:-no detail})" >&2
       exit 1 ;;
   esac
 done
 
-echo "prbuff: review still in progress, check the PR later (run ${run_id})"
+close_group
+echo "prbuff: review still in progress, check the PR shortly"
 exit 0
