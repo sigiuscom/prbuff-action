@@ -1,0 +1,40 @@
+name: prbuff
+description: AI code review for your pull requests
+author: sigius
+branding:
+  icon: eye
+  color: purple
+
+inputs:
+  api-key:
+    description: prbuff API key (store as a repository secret)
+    required: true
+  review-command:
+    description: review mode (run, run-inline, run-context, run-summary, run-inline-reply, run-summary-reply)
+    required: false
+    default: run-summary
+  pull-request-number:
+    description: PR number (defaults to the triggering pull_request)
+    required: false
+    default: ${{ github.event.pull_request.number }}
+  api-url:
+    description: prbuff API base URL
+    required: false
+    default: https://api.prbuff.com
+
+runs:
+  using: composite
+  steps:
+    - name: Run prbuff review
+      shell: bash
+      env:
+        PRBUFF_API_KEY: ${{ inputs.api-key }}
+        PRBUFF_GH_TOKEN: ${{ github.token }}
+        PRBUFF_API_URL: ${{ inputs.api-url }}
+        PRBUFF_COMMAND: ${{ inputs.review-command }}
+        PRBUFF_PR: ${{ inputs.pull-request-number }}
+        PRBUFF_OWNER: ${{ github.repository_owner }}
+        PRBUFF_REPO: ${{ github.event.repository.name }}
+        PRBUFF_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        PRBUFF_EVENT: ${{ github.event_name }}
+      run: ${{ github.action_path }}/review.sh
