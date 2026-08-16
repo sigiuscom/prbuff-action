@@ -1,0 +1,20 @@
+name: CI
+on: [pull_request, push]
+permissions:
+  contents: read
+jobs:
+  action:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - run: bash -n review.sh
+      - run: |
+          python - <<'PY'
+          import yaml
+          action=yaml.safe_load(open('action.yml'))
+          assert action['runs']['using']=='composite'
+          assert action['runs']['steps']
+          assert action['inputs']['api-key']['required'] is True
+          PY
+  gitleaks:
+    uses: sigiuscom/workflows/.github/workflows/gitleaks.yml@ecdebdb68ac9307095d497bc90e0a14f896ee754
