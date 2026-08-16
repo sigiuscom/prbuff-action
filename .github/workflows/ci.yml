@@ -18,3 +18,41 @@ jobs:
           PY
   gitleaks:
     uses: sigiuscom/workflows/.github/workflows/gitleaks.yml@ecdebdb68ac9307095d497bc90e0a14f896ee754
+  behavior:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Reject unsafe event before network
+        env:
+          PRBUFF_API_KEY: test-key
+          PRBUFF_GH_TOKEN: test-token
+          PRBUFF_API_URL: http://127.0.0.1:1
+          PRBUFF_COMMAND: run-summary
+          PRBUFF_PR: '1'
+          PRBUFF_OWNER: sigiuscom
+          PRBUFF_REPO: prbuff-action
+          PRBUFF_HEAD_SHA: deadbeef
+          PRBUFF_EVENT: pull_request_target
+        run: |
+          if ./review.sh 2>error.log; then
+            echo 'unsafe event unexpectedly accepted' >&2
+            exit 1
+          fi
+          grep -q 'pull_request_target is not supported' error.log
+      - name: Require pull request number before network
+        env:
+          PRBUFF_API_KEY: test-key
+          PRBUFF_GH_TOKEN: test-token
+          PRBUFF_API_URL: http://127.0.0.1:1
+          PRBUFF_COMMAND: run-summary
+          PRBUFF_PR: ''
+          PRBUFF_OWNER: sigiuscom
+          PRBUFF_REPO: prbuff-action
+          PRBUFF_HEAD_SHA: deadbeef
+          PRBUFF_EVENT: workflow_dispatch
+        run: |
+          if ./review.sh 2>error.log; then
+            echo 'missing PR unexpectedly accepted' >&2
+            exit 1
+          fi
+          grep -q 'pull-request-number is required' error.log
