@@ -4,7 +4,7 @@ permissions:
   contents: read
 jobs:
   action:
-    runs-on: ubuntu-24.04
+    runs-on: aks-untrusted
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - run: bash -n review.sh
@@ -19,7 +19,7 @@ jobs:
   gitleaks:
     uses: sigiuscom/workflows/.github/workflows/gitleaks.yml@ecdebdb68ac9307095d497bc90e0a14f896ee754
   behavior:
-    runs-on: ubuntu-24.04
+    runs-on: aks-untrusted
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Reject unsafe event before network
