@@ -21,7 +21,7 @@ jobs:
           assert action['inputs']['api-key']['required'] is True
           PY
   gitleaks:
-    uses: sigiuscom/workflows/.github/workflows/gitleaks.yml@ecdebdb68ac9307095d497bc90e0a14f896ee754
+    uses: sigiuscom/workflows/.github/workflows/gitleaks.yml@68021f7726fdb1032bcc721dd7fea71e16a28a17
   behavior:
     runs-on: aks-untrusted
     steps:
